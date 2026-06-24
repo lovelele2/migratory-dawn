@@ -3,6 +3,30 @@
 import { useState } from "react";
 import type { DemoStore } from "./use-demo-store";
 
+function describeOtpFailure(result: { status?: number; reason?: string; data?: Record<string, unknown> } | null) {
+  const status = result?.status;
+  const errorCode = typeof result?.data?.error_code === "string" ? result.data.error_code : "";
+  const message = typeof result?.data?.msg === "string" ? result.data.msg : "";
+
+  if (status === 429 || errorCode === "over_email_send_rate_limit") {
+    return "验证码发送太频繁，请稍后再试，或者换一个邮箱。";
+  }
+
+  if (status === 400 || errorCode === "email_address_invalid") {
+    return "邮箱格式无效，请检查后再试。";
+  }
+
+  if (result?.reason === "missing_env") {
+    return "Supabase 还没配置好，暂时只能使用本地演示登录。";
+  }
+
+  if (status) {
+    return message ? `验证码发送失败：${message}` : `验证码发送失败：HTTP ${status}`;
+  }
+
+  return "验证码发送失败，请稍后再试。";
+}
+
 type LoginPanelProps = {
   store: DemoStore;
 };
@@ -70,6 +94,7 @@ export function LoginPanel({ store }: LoginPanelProps) {
         type="button"
         onClick={async () => {
           if (!email.trim()) {
+            setMessage("请先填写邮箱地址。");
             return;
           }
           const result = await store.requestOtp(email);
@@ -79,9 +104,8 @@ export function LoginPanel({ store }: LoginPanelProps) {
             return;
           }
 
-          await store.signIn(email, nickname);
-          setRequested(true);
-          setMessage("Supabase 暂时不可用，已切到本地演示登录。");
+          setRequested(false);
+          setMessage(describeOtpFailure(result));
         }}
         className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-black"
       >
@@ -91,6 +115,7 @@ export function LoginPanel({ store }: LoginPanelProps) {
         type="button"
         onClick={async () => {
           if (!email.trim() || !token.trim()) {
+            setMessage("请先填写邮箱地址和验证码。");
             return;
           }
           const result = await store.verifyOtp(email, token, nickname);
@@ -98,8 +123,8 @@ export function LoginPanel({ store }: LoginPanelProps) {
             setMessage("已完成 Supabase 登录。");
             return;
           }
-          await store.signIn(email, nickname);
-          setMessage("验证码验证失败，已切到本地演示登录。");
+
+          setMessage("验证码验证失败，请检查验证码是否正确，或重新发送一次。");
         }}
         className="w-full rounded-full border border-white/15 bg-black/20 px-5 py-3 text-sm font-semibold text-white"
       >

@@ -119,3 +119,7 @@
 ## D-028 — Persist demo fallback state in the browser
 **Decision:** Store demo login, letter, and camera-review state in client-side local storage instead of relying only on server memory.  
 **Reason:** Vercel serverless instances do not guarantee in-memory persistence, so browser storage keeps demo sessions stable after refresh.
+
+## D-029 — Surface OTP failure reasons directly
+**Decision:** Show the exact Supabase OTP failure cause in the login UI instead of silently switching to demo mode on every failed request.  
+**Reason:** Users need to know whether the problem is rate limiting, an invalid email, or missing backend configuration.

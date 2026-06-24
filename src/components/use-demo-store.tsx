@@ -126,10 +126,13 @@ async function postAuthAction(path: "/api/auth/request-otp" | "/api/auth/verify-
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+
   return {
     ok: response.ok,
     status: response.status,
-    data: (await response.json().catch(() => ({}))) as Record<string, unknown>,
+    reason: typeof data.reason === "string" ? data.reason : undefined,
+    data,
   };
 }
 
