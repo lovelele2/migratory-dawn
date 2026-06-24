@@ -135,3 +135,7 @@
 ## D-032 — Normalize homepage media into one active mode
 **Decision:** Treat homepage media as a single active mode selected from live, day, image, or fallback, and auto-advance through the next source when the current one fails or times out.  
 **Reason:** The homepage must never show conflicting source labels at the same time, and the fallback path needs to remain truthful when Windy media is unavailable.
+
+## D-033 — Rotate featured sunrise cameras within the scored shortlist
+**Decision:** Score all eligible cameras first, then choose the featured camera from the top shortlist using a time-window rotation instead of always taking the first-ranked item.  
+**Reason:** A fixed top-1 camera makes the sunrise look stuck in one place, while a bounded rotation still respects the score gate and gives the homepage movement over time.

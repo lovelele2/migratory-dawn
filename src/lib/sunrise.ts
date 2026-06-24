@@ -1,4 +1,5 @@
 import type { CameraCandidate, SunriseSnapshot } from "./camera-types";
+import { selectFeaturedCamera } from "./camera-selection";
 import { getWindySunriseSnapshot } from "./windy";
 
 const fallbackCandidates: CameraCandidate[] = [
@@ -88,7 +89,7 @@ export async function getCurrentSunriseSnapshot(): Promise<SunriseSnapshot> {
     return windySnapshot;
   }
 
-  const [currentCamera, ...queue] = fallbackCandidates;
+  const { currentCamera, queue } = selectFeaturedCamera(fallbackCandidates);
 
   return {
     mediaMode: currentCamera.mediaMode,

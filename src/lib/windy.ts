@@ -1,5 +1,6 @@
 import * as SunCalc from "suncalc";
 import type { CameraCandidate, CameraLocation, CameraSourceType, MediaMode, SunriseSnapshot } from "./camera-types";
+import { selectFeaturedCamera } from "./camera-selection";
 
 const WINDY_ENDPOINT = "https://api.windy.com/webcams/api/v3/webcams";
 const REQUEST_TIMEOUT_MS = 8000;
@@ -528,6 +529,6 @@ export async function getWindySunriseSnapshot(): Promise<SunriseSnapshot | null>
     return null;
   }
 
-  const [currentCamera, ...queue] = cameras;
+  const { currentCamera, queue } = selectFeaturedCamera(cameras);
   return buildSnapshotFromCamera(currentCamera, queue);
 }
