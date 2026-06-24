@@ -131,4 +131,5 @@ Verified routes:
 - The demo fallback state now persists on the client so production demo sessions survive refreshes on Vercel instead of relying on server memory.
 - The login page now surfaces Supabase OTP failure reasons in Chinese instead of silently falling back when the provider rate-limits the request.
 - The OTP request endpoint now preserves Supabase status codes, so the UI can distinguish rate limits from other failures.
+- The login page now adds a resend cooldown after each OTP request, so repeated taps show an explicit countdown instead of feeling unresponsive.
 - The next presentation step is to keep new UI copy in Chinese unless a technical term must stay in English.

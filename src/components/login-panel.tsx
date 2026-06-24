@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DemoStore } from "./use-demo-store";
 
 function describeOtpFailure(result: { status?: number; reason?: string; data?: Record<string, unknown> } | null) {
@@ -48,6 +48,25 @@ export function LoginPanel({ store }: LoginPanelProps) {
   const [token, setToken] = useState("");
   const [requested, setRequested] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const initialTimer = window.setTimeout(() => setNow(Date.now()), 0);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const cooldownRemaining = useMemo(() => {
+    if (!cooldownUntil) {
+      return 0;
+    }
+
+    return Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
+  }, [cooldownUntil, now]);
 
   return (
     <div className="space-y-5">
@@ -103,11 +122,13 @@ export function LoginPanel({ store }: LoginPanelProps) {
       </label>
       <button
         type="button"
+        disabled={cooldownRemaining > 0}
         onClick={async () => {
           if (!email.trim()) {
             setMessage("请先填写邮箱地址。");
             return;
           }
+          setCooldownUntil(Date.now() + 60_000);
           const result = await store.requestOtp(email);
           if (result.ok) {
             setRequested(true);
@@ -118,9 +139,9 @@ export function LoginPanel({ store }: LoginPanelProps) {
           setRequested(false);
           setMessage(describeOtpFailure(result));
         }}
-        className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-black"
+        className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-white/40"
       >
-        发送验证码
+        {cooldownRemaining > 0 ? `重新发送（${cooldownRemaining}s）` : "发送验证码"}
       </button>
       <button
         type="button"

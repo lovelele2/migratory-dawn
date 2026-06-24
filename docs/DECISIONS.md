@@ -127,3 +127,7 @@
 ## D-030 — Preserve Supabase OTP status codes
 **Decision:** Forward the upstream OTP status code from the server route instead of forcing every error to HTTP 503.  
 **Reason:** The client can only present the correct Chinese explanation if it can see whether Supabase returned rate limiting, invalid email, or another failure class.
+
+## D-031 — Add a resend cooldown to the OTP form
+**Decision:** Disable the OTP send button for a short cooldown after each request and show a visible countdown in the button label.  
+**Reason:** The login flow feels broken when repeated clicks hit the same rate limit, so the countdown makes the backend delay obvious and prevents accidental spam.
