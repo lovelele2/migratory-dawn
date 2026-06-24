@@ -12,6 +12,7 @@ import {
   type DemoLetterDeliveryMode,
   type DemoProfile,
 } from "@/lib/demo-state";
+import { applyDemoAction, type DemoAction, type DemoState } from "@/lib/demo-server-store";
 
 type ComposeDraft = {
   recipientBirdCode: string;
@@ -41,6 +42,47 @@ const initialState: StoredState = {
   },
   sessionProfileId: null,
 };
+
+const CLIENT_STATE_KEY = "migratory-dawn.client-demo-state";
+
+function readClientState() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CLIENT_STATE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw) as StoredState;
+  } catch {
+    return null;
+  }
+}
+
+function writeClientState(state: StoredState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(CLIENT_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage quota or private browsing failures.
+  }
+}
+
+function toStoredState(state: DemoState): StoredState {
+  return {
+    profiles: state.profiles,
+    letters: state.letters,
+    cameraReviews: state.cameraReviews,
+    flags: state.flags,
+    sessionProfileId: state.sessionProfileId,
+  };
+}
 
 function initialDraft(profile?: DemoProfile | null): ComposeDraft {
   return {
@@ -108,6 +150,7 @@ export function useDemoStore() {
     setSessionProfileId(state.sessionProfileId);
     setDraft(initialDraft(state.profiles.find((profile) => profile.id === state.sessionProfileId) ?? null));
     setReady(true);
+    writeClientState(state);
   };
 
   const reload = async () => {
@@ -118,6 +161,19 @@ export function useDemoStore() {
 
   useEffect(() => {
     let active = true;
+
+    const localState = readClientState();
+    if (localState) {
+      window.setTimeout(() => {
+        if (active) {
+          syncState(localState);
+        }
+      }, 0);
+      return () => {
+        active = false;
+      };
+    }
+
     fetchDemoState()
       .then((state) => {
         if (!active) {
@@ -170,10 +226,11 @@ export function useDemoStore() {
     [cameraReviews],
   );
 
-  const patchState = async (action: unknown) => {
-    const next = await postDemoAction(action);
-    syncState(next);
-    return next;
+  const patchState = async (action: DemoAction) => {
+    const nextState = toStoredState(applyDemoAction(action));
+    syncState(nextState);
+    void postDemoAction(action).catch(() => {});
+    return nextState;
   };
 
   return {

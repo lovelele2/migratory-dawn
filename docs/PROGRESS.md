@@ -128,4 +128,5 @@ Verified routes:
 - The next external step is to sign in to Vercel, import the repository, set production environment variables, and apply the Supabase migration SQL to the external project.
 - The Vercel import page is reachable, but it currently stops at the provider sign-in screen because the account is not connected in this browser session.
 - The homepage and globe now refresh the sunrise snapshot on a timer so the bird position and current source stay current over time.
+- The demo fallback state now persists on the client so production demo sessions survive refreshes on Vercel instead of relying on server memory.
 - The next presentation step is to keep new UI copy in Chinese unless a technical term must stay in English.

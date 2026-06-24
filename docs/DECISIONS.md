@@ -115,3 +115,7 @@
 ## D-027 — Refresh the sunrise snapshot on a timer
 **Decision:** Have the homepage and globe re-fetch the sunrise snapshot periodically instead of treating it as a one-time load.  
 **Reason:** The bird position and current source should keep moving with time, not freeze at the first page load.
+
+## D-028 — Persist demo fallback state in the browser
+**Decision:** Store demo login, letter, and camera-review state in client-side local storage instead of relying only on server memory.  
+**Reason:** Vercel serverless instances do not guarantee in-memory persistence, so browser storage keeps demo sessions stable after refresh.
