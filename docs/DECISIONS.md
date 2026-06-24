@@ -133,9 +133,9 @@
 **Reason:** The login flow feels broken when repeated clicks hit the same rate limit, so the countdown makes the backend delay obvious and prevents accidental spam.
 
 ## D-032 — Normalize homepage media into one active mode
-**Decision:** Treat homepage media as a single active mode selected from live, day, image, or fallback, and auto-advance through the next source when the current one fails or times out.  
-**Reason:** The homepage must never show conflicting source labels at the same time, and the fallback path needs to remain truthful when Windy media is unavailable.
+**Decision:** Treat homepage media as a single active mode selected from live or fallback only, and auto-advance to the fallback video when the live stream fails or times out.  
+**Reason:** The homepage must not surface still images or time-lapse sources when the desired experience is live-only, and the fallback path needs to remain truthful when Windy live media is unavailable.
 
 ## D-033 — Rotate featured sunrise cameras within the scored shortlist
-**Decision:** Score all eligible cameras first, then choose the featured camera from the top shortlist using a time-window rotation instead of always taking the first-ranked item.  
-**Reason:** A fixed top-1 camera makes the sunrise look stuck in one place, while a bounded rotation still respects the score gate and gives the homepage movement over time.
+**Decision:** Score all eligible cameras first, then choose the featured camera from a diversified shortlist built from multiple candidate pages and rotate it over a longer time window instead of always taking the first-ranked item.  
+**Reason:** A fixed top-1 camera makes the sunrise look stuck in one place, while broader sampling and bounded rotation still respect the score gate and give the homepage movement over time.

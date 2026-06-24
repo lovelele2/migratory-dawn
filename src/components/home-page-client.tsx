@@ -62,7 +62,7 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
   }, [snapshot.currentCamera.webcamId, snapshot.currentCamera.mediaMode]);
 
   useEffect(() => {
-    if (!activeSourceMode || !activeSourceUrl) {
+    if (!activeSource || activeSource.kind !== "iframe" || !activeSourceMode || !activeSourceUrl) {
       return;
     }
 
@@ -80,7 +80,7 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
         timeoutRef.current = null;
       }
     };
-  }, [activeSourceMode, activeSourceUrl, mediaSources.length]);
+  }, [activeSource, activeSourceMode, activeSourceUrl, mediaSources.length]);
 
   const mediaLabel = activeSource ? getMediaModeLabel(activeSource.mode) : getMediaModeLabel(snapshot.currentCamera.mediaMode);
   const mediaTone = activeSource ? getMediaTone(activeSource.mode) : getMediaTone(snapshot.currentCamera.mediaMode);
@@ -122,7 +122,9 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
               </div>
               <div className="flex flex-wrap gap-3 text-sm text-white/72">
                 <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2">{snapshot.source.localTime}</div>
-                <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2">{sunriseDeltaLabel}</div>
+                <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2">
+                  {snapshot.mediaMode === "live" ? sunriseDeltaLabel : "没有可用直播，已切换到精选视频"}
+                </div>
               </div>
             </div>
 
@@ -152,21 +154,17 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
                         setActiveSourceIndex((current) => Math.min(current + 1, mediaSources.length - 1));
                       }}
                     />
-                  ) : activeSource ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
+                  ) : activeSource?.kind === "video" ? (
+                    <video
                       key={activeSource.url}
-                      alt={`${snapshot.currentCamera.title} · ${activeSource.label}`}
                       className="absolute inset-0 h-full w-full min-h-[200px] min-w-[110px] object-cover"
                       src={activeSource.url}
-                      referrerPolicy="no-referrer"
-                      loading="eager"
-                      onLoad={() => {
-                        if (timeoutRef.current) {
-                          window.clearTimeout(timeoutRef.current);
-                          timeoutRef.current = null;
-                        }
-                      }}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      preload="auto"
+                      poster="/window.svg"
                       onError={() => {
                         setActiveSourceIndex((current) => Math.min(current + 1, mediaSources.length - 1));
                       }}

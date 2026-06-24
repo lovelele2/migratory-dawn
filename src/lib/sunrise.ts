@@ -23,54 +23,6 @@ const fallbackCandidates: CameraCandidate[] = [
     freshnessLabel: "2 分钟前更新",
     attribution: "精选真实日出回退",
   },
-  {
-    webcamId: 910103,
-    title: "霍巴特港湾黎明",
-    status: "active",
-    lastUpdatedOn: "2026-06-23T09:55:00Z",
-    localTimeLabel: "UTC 07:55",
-    location: {
-      city: "霍巴特",
-      country: "澳大利亚",
-      latitude: -42.8821,
-      longitude: 147.3272,
-    },
-    sourceType: "今日延时",
-    mediaMode: "day",
-    previewLabel: "今日延时影像",
-    score: 84,
-    sunriseDeltaMinutes: 14,
-    freshnessLabel: "今日延时 5 分钟前刷新",
-    attribution: "Windy 回退选片",
-    player: {
-      day: "https://example.invalid/hobart/day.mp4",
-    },
-  },
-  {
-    webcamId: 910104,
-    title: "基督城码头图像",
-    status: "active",
-    lastUpdatedOn: "2026-06-23T09:52:00Z",
-    localTimeLabel: "UTC 08:52",
-    location: {
-      city: "基督城",
-      country: "新西兰",
-      latitude: -43.5321,
-      longitude: 172.6362,
-    },
-    sourceType: "实时相机图像",
-    mediaMode: "image",
-    previewLabel: "最新图片",
-    score: 72,
-    sunriseDeltaMinutes: 21,
-    freshnessLabel: "图片更新时间 8 分钟前",
-    attribution: "Windy 回退选片",
-    images: {
-      current: {
-        preview: "https://example.invalid/christchurch/current.jpg",
-      },
-    },
-  },
 ];
 
 function formatPlace(candidate: CameraCandidate) {
@@ -97,18 +49,12 @@ export async function getCurrentSunriseSnapshot(): Promise<SunriseSnapshot> {
       label: currentCamera.sourceType,
       place: formatPlace(currentCamera),
       localTime: currentCamera.localTimeLabel,
-      status: currentCamera.mediaMode === "fallback" ? "本地精选日出影像已准备好。" : "在 Windy 数据接入前使用演示回退。",
+      status: "本地精选日出视频已准备好。",
       attribution: currentCamera.attribution,
     },
-    birdStatus:
-      currentCamera.mediaMode === "fallback"
-        ? "候鸟暂时带来了一段真实日出影像。"
-        : currentCamera.mediaMode === "live"
-          ? "候鸟抵达了正在升起的太阳。"
-          : "候鸟带来了这里最新的晨光。",
+    birdStatus: "候鸟暂时带来了一段真实日出影像。",
     currentCamera,
     queue,
-    note:
-      "此快照在 Windy 服务端接入完成前使用真实回退媒体。",
+    note: "此快照在 Windy 服务端接入完成前使用真实回退视频。",
   };
 }

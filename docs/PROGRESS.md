@@ -132,6 +132,6 @@ Verified routes:
 - The login page now surfaces Supabase OTP failure reasons in Chinese instead of silently falling back when the provider rate-limits the request.
 - The OTP request endpoint now preserves Supabase status codes, so the UI can distinguish rate limits from other failures.
 - The login page now adds a resend cooldown after each OTP request, so repeated taps show an explicit countdown instead of feeling unresponsive.
-- The homepage media path now uses a single active mode with live, day, image, and fallback states, plus a local curated sunrise fallback asset.
-- The homepage sunrise selector now chooses from a scored shortlist and rotates the featured camera by time window instead of always showing the same source.
+- The homepage media path now uses live-only playback and a local curated sunrise fallback video when no live source is available.
+- The homepage sunrise selector now uses a broader page-based pool, filters to live sunrise candidates, and rotates the featured camera across a longer shortlist instead of always showing the same source.
 - The next presentation step is to keep new UI copy in Chinese unless a technical term must stay in English.

@@ -5,8 +5,8 @@ type FeaturedSelection = {
   queue: CameraCandidate[];
 };
 
-const FEATURE_ROTATION_WINDOW_MS = 5 * 60 * 1000;
-const FEATURE_SHORTLIST_SIZE = 4;
+const FEATURE_ROTATION_WINDOW_MS = 60 * 60 * 1000;
+const FEATURE_SHORTLIST_SIZE = 24;
 
 function pickModeRank(camera: CameraCandidate) {
   if (camera.mediaMode === "live") {
@@ -28,11 +28,21 @@ function withinSunriseWindow(camera: CameraCandidate) {
   return camera.sunriseDeltaMinutes >= -30 && camera.sunriseDeltaMinutes <= 60;
 }
 
+function normalizeLongitude(longitude: number) {
+  const normalized = ((longitude + 180) % 360 + 360) % 360 - 180;
+  return normalized;
+}
+
+function getZoneKey(camera: CameraCandidate) {
+  const bucketSize = 30;
+  return Math.floor((normalizeLongitude(camera.location.longitude) + 180) / bucketSize);
+}
+
 function getShortlistPool(cameras: CameraCandidate[]) {
   const windowed = cameras.filter(withinSunriseWindow);
   const ranked = windowed.length > 0 ? windowed : cameras;
 
-  return [...ranked].sort((left, right) => {
+  const sorted = [...ranked].sort((left, right) => {
     const scoreDelta = right.score - left.score;
     if (scoreDelta !== 0) {
       return scoreDelta;
@@ -40,6 +50,25 @@ function getShortlistPool(cameras: CameraCandidate[]) {
 
     return pickModeRank(left) - pickModeRank(right);
   });
+
+  const shortlist: CameraCandidate[] = [];
+  const seenZones = new Set<number>();
+
+  for (const camera of sorted) {
+    const zone = getZoneKey(camera);
+    if (seenZones.has(zone)) {
+      continue;
+    }
+
+    seenZones.add(zone);
+    shortlist.push(camera);
+
+    if (shortlist.length >= FEATURE_SHORTLIST_SIZE) {
+      break;
+    }
+  }
+
+  return shortlist.length > 0 ? shortlist : sorted.slice(0, FEATURE_SHORTLIST_SIZE);
 }
 
 export function selectFeaturedCamera(cameras: CameraCandidate[], reference = new Date()): FeaturedSelection {

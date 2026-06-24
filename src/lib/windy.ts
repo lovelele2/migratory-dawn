@@ -4,7 +4,8 @@ import { selectFeaturedCamera } from "./camera-selection";
 
 const WINDY_ENDPOINT = "https://api.windy.com/webcams/api/v3/webcams";
 const REQUEST_TIMEOUT_MS = 8000;
-const MAX_RESULTS = 6;
+const PAGE_LIMIT = 20;
+const PAGE_COUNT = 4;
 const CURATED_WINDY_WHITELIST = new Set<number>([1227972392]);
 
 type RawCamera = Record<string, unknown> & {
@@ -22,6 +23,14 @@ type ParsedResponse = {
   cameras: RawCamera[];
   raw: unknown;
 };
+
+type CachedCameraPool = {
+  at: number;
+  cameras: CameraCandidate[];
+};
+
+const CACHE_WINDOW_MS = 2 * 60 * 1000;
+let cachedCameraPool: CachedCameraPool | null = null;
 
 function getApiKey() {
   return process.env.WINDY_API_KEY?.trim() || "";
@@ -237,6 +246,15 @@ function getMediaMode(raw: RawCamera): MediaMode | null {
   return null;
 }
 
+function isCameraOnline(status: string | undefined) {
+  if (!status) {
+    return false;
+  }
+
+  const normalized = status.toLowerCase();
+  return !normalized.includes("inactive") && !normalized.includes("offline") && !normalized.includes("closed");
+}
+
 function isDirectionHint(title: string) {
   const lower = title.toLowerCase();
   return lower.includes("east") || lower.includes("southeast") || lower.includes("south east");
@@ -323,7 +341,7 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
   const title = typeof raw.title === "string" ? raw.title : "";
   const sourceType = getSourceType(raw);
   const mediaMode = getMediaMode(raw);
-  if (!sourceType || !mediaMode) {
+  if (!sourceType || !mediaMode || !isCameraOnline(raw.status)) {
     return null;
   }
 
@@ -342,6 +360,14 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
 
   const freshnessMinutes = getFreshnessMinutes(typeof raw.lastUpdatedOn === "string" ? raw.lastUpdatedOn : undefined);
   const withinSunriseWindow = sunriseDeltaMinutes >= -30 && sunriseDeltaMinutes <= 60;
+  if (!withinSunriseWindow && !CURATED_WINDY_WHITELIST.has(raw.webcamId ?? -1)) {
+    return null;
+  }
+
+  if (!rising) {
+    return null;
+  }
+
   let score = 0;
 
   if (zoneDistance <= 30) {
@@ -358,13 +384,11 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
     score += 30;
   }
 
-  if (Math.abs(sunriseDeltaMinutes) <= 30) {
+  if (withinSunriseWindow) {
     score += 40;
   }
 
-  if (rising) {
-    score += 20;
-  }
+  score += 20;
 
   if (mediaMode === "live") {
     score += 25;
@@ -381,7 +405,7 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
   }
 
   if (isDirectionHint(title)) {
-    score += 5;
+    score += 10;
   }
 
   return {
@@ -447,39 +471,53 @@ function normalizeCamera(raw: RawCamera): CameraCandidate | null {
 }
 
 async function fetchWindyCandidates() {
-  const [base, location, images, player] = await Promise.all([
-    fetchWindyPayload({ limit: MAX_RESULTS }),
-    fetchWindyPayload({ limit: MAX_RESULTS, include: "location" }),
-    fetchWindyPayload({ limit: MAX_RESULTS, include: "images" }),
-    fetchWindyPayload({ limit: MAX_RESULTS, include: "player" }),
-  ]);
+  const cached = cachedCameraPool && Date.now() - cachedCameraPool.at < CACHE_WINDOW_MS ? cachedCameraPool.cameras : null;
+  if (cached) {
+    return cached;
+  }
 
-  const batches = [base, location, images, player]
-    .filter((batch): batch is ParsedResponse => Boolean(batch))
-    .map((batch) => batch.cameras);
+  const pageIndexes = Array.from({ length: PAGE_COUNT }, (_, index) => index);
+  const batches = await Promise.all(
+    pageIndexes.flatMap((page) => [
+      fetchWindyPayload({ limit: PAGE_LIMIT, page }),
+      fetchWindyPayload({ limit: PAGE_LIMIT, page, include: "location" }),
+      fetchWindyPayload({ limit: PAGE_LIMIT, page, include: "images" }),
+      fetchWindyPayload({ limit: PAGE_LIMIT, page, include: "player" }),
+    ]),
+  );
 
-  if (batches.length === 0) {
+  const parsedBatches = batches.filter((batch): batch is ParsedResponse => Boolean(batch));
+  const rawBatches = parsedBatches.map((batch) => batch.cameras);
+
+  if (rawBatches.length === 0) {
     console.warn("[windy] no batches returned from API");
     return [];
   }
 
-  const merged = mergeByWebcamId(batches);
+  const merged = mergeByWebcamId(rawBatches);
   const normalized = merged
     .map((raw) => normalizeCamera(raw))
     .filter((camera): camera is CameraCandidate => Boolean(camera))
-    .sort((left, right) => right.score - left.score)
-    .slice(0, MAX_RESULTS);
+    .sort((left, right) => right.score - left.score);
 
-  const sunriseWindowCandidates = normalized.filter((camera) => camera.sunriseDeltaMinutes >= -30 && camera.sunriseDeltaMinutes <= 60);
-  const finalCandidates = sunriseWindowCandidates.length > 0 ? sunriseWindowCandidates : normalized;
+  const liveOnly = normalized.filter((camera) => camera.mediaMode === "live");
+  const sunriseWindowCandidates = liveOnly.filter((camera) => camera.sunriseDeltaMinutes >= -30 && camera.sunriseDeltaMinutes <= 60);
+  const finalCandidates = (sunriseWindowCandidates.length > 0 ? sunriseWindowCandidates : liveOnly).slice(0, PAGE_LIMIT);
+
+  cachedCameraPool = {
+    at: Date.now(),
+    cameras: finalCandidates,
+  };
 
   console.log(
-    "[windy] batches",
-    batches.map((batch) => batch.length).join(","),
+    "[windy] pages",
+    pageIndexes.join(","),
     "merged",
     merged.length,
     "normalized",
     normalized.length,
+    "live",
+    liveOnly.length,
     "window",
     sunriseWindowCandidates.length,
   );

@@ -2,7 +2,7 @@ import type { CameraCandidate, MediaMode } from "./camera-types";
 
 export type HomeMediaSource = {
   mode: MediaMode;
-  kind: "iframe" | "image";
+  kind: "iframe" | "video";
   url: string;
   label: string;
   status: string;
@@ -106,35 +106,10 @@ export function getMediaSources(camera: CameraCandidate): HomeMediaSource[] {
     });
   }
 
-  if (camera.player?.day?.trim()) {
-    sources.push({
-      mode: "day",
-      kind: "iframe",
-      url: camera.player.day,
-      label: "今日延时影像",
-      status: getSourceStatus("day"),
-      helper: getMediaModeLabel("day"),
-      secondaryUrl: camera.player.day,
-    });
-  }
-
-  const imageUrl = camera.images?.current?.preview ?? camera.images?.daylight?.preview ?? "";
-  if (imageUrl.trim()) {
-    sources.push({
-      mode: "image",
-      kind: "image",
-      url: imageUrl,
-      label: "最新图片",
-      status: getSourceStatus("image"),
-      helper: getMediaModeLabel("image"),
-      secondaryUrl: camera.player?.live?.trim() ? camera.player.live : camera.player?.day?.trim() ? camera.player.day : undefined,
-    });
-  }
-
   sources.push({
     mode: "fallback",
-    kind: "image",
-    url: "/sunrise-fallback.webp",
+    kind: "video",
+    url: "/sunrise-fallback.mp4",
     label: "演示日出影像",
     status: getSourceStatus("fallback"),
     helper: getMediaModeLabel("fallback"),
