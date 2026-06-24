@@ -5,8 +5,19 @@ import type { DemoStore } from "./use-demo-store";
 
 function describeOtpFailure(result: { status?: number; reason?: string; data?: Record<string, unknown> } | null) {
   const status = result?.status;
-  const errorCode = typeof result?.data?.error_code === "string" ? result.data.error_code : "";
-  const message = typeof result?.data?.msg === "string" ? result.data.msg : "";
+  const nestedData = result?.data && typeof result.data.data === "object" && result.data.data !== null ? (result.data.data as Record<string, unknown>) : null;
+  const errorCode =
+    typeof result?.data?.error_code === "string"
+      ? result.data.error_code
+      : typeof nestedData?.error_code === "string"
+        ? nestedData.error_code
+        : "";
+  const message =
+    typeof result?.data?.msg === "string"
+      ? result.data.msg
+      : typeof nestedData?.msg === "string"
+        ? nestedData.msg
+        : "";
 
   if (status === 429 || errorCode === "over_email_send_rate_limit") {
     return "验证码发送太频繁，请稍后再试，或者换一个邮箱。";

@@ -12,5 +12,5 @@ export async function POST(request: Request) {
   }
 
   const result = await requestOtp(email);
-  return NextResponse.json(result, { status: result.ok ? 200 : 503 });
+  return NextResponse.json(result, { status: result.ok ? 200 : result.status ?? 503 });
 }

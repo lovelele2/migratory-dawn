@@ -123,3 +123,7 @@
 ## D-029 — Surface OTP failure reasons directly
 **Decision:** Show the exact Supabase OTP failure cause in the login UI instead of silently switching to demo mode on every failed request.  
 **Reason:** Users need to know whether the problem is rate limiting, an invalid email, or missing backend configuration.
+
+## D-030 — Preserve Supabase OTP status codes
+**Decision:** Forward the upstream OTP status code from the server route instead of forcing every error to HTTP 503.  
+**Reason:** The client can only present the correct Chinese explanation if it can see whether Supabase returned rate limiting, invalid email, or another failure class.

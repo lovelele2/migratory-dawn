@@ -130,4 +130,5 @@ Verified routes:
 - The homepage and globe now refresh the sunrise snapshot on a timer so the bird position and current source stay current over time.
 - The demo fallback state now persists on the client so production demo sessions survive refreshes on Vercel instead of relying on server memory.
 - The login page now surfaces Supabase OTP failure reasons in Chinese instead of silently falling back when the provider rate-limits the request.
+- The OTP request endpoint now preserves Supabase status codes, so the UI can distinguish rate limits from other failures.
 - The next presentation step is to keep new UI copy in Chinese unless a technical term must stay in English.
