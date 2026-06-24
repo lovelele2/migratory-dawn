@@ -1,65 +1,198 @@
-import Image from "next/image";
+import Link from "next/link";
+import { SourceBadge } from "@/components/source-badge";
+import { getCurrentSunriseSnapshot } from "@/lib/sunrise";
 
-export default function Home() {
+function getCameraMediaUrl(snapshot: Awaited<ReturnType<typeof getCurrentSunriseSnapshot>>) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    snapshot.currentCamera.images?.current?.preview ??
+    snapshot.currentCamera.images?.daylight?.preview ??
+    snapshot.currentCamera.player?.live ??
+    null
+  );
+}
+
+function getCameraPlayerUrl(snapshot: Awaited<ReturnType<typeof getCurrentSunriseSnapshot>>) {
+  return snapshot.currentCamera.player?.live ?? snapshot.currentCamera.player?.day ?? null;
+}
+
+export default async function Home() {
+  const snapshot = await getCurrentSunriseSnapshot();
+  const mediaUrl = getCameraMediaUrl(snapshot);
+  const playerUrl = getCameraPlayerUrl(snapshot);
+  const mediaLabel =
+    snapshot.currentCamera.sourceType === "直播"
+      ? "直播画面"
+      : snapshot.currentCamera.sourceType === "今日延时"
+        ? "今日延时画面"
+        : "相机当前画面";
+
+  return (
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,170,90,0.2),_transparent_25%),linear-gradient(180deg,_#131313_0%,_#060606_100%)] text-white">
+      <section className="relative min-h-screen overflow-hidden pb-24">
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.52))]" />
+        <div className="absolute inset-x-0 top-0 h-[58vh] bg-[radial-gradient(circle_at_50%_22%,rgba(255,178,92,0.5),rgba(255,178,92,0.06)_28%,transparent_60%)] opacity-90" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_82%,rgba(255,255,255,0.08),transparent_28%)]" />
+
+        <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 pb-28 pt-4 sm:px-6 lg:px-8">
+          <header className="flex items-start justify-between gap-4 text-xs uppercase tracking-[0.26em] text-white/60">
+            <div>
+              <p>候鸟逐日 / Migratory Dawn</p>
+              <p className="mt-1 text-[0.64rem] tracking-[0.2em] text-white/40">安静的地球日出窗口</p>
+            </div>
+            <p className="text-right">正在使用演示回退</p>
+          </header>
+
+          <div className="mt-auto grid gap-8 pb-10 pt-24 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <SourceBadge label={snapshot.source.label} />
+                <span className="text-sm text-white/65">{snapshot.source.status}</span>
+              </div>
+              <div className="space-y-4">
+                <p className="text-sm uppercase tracking-[0.28em] text-white/55">
+                  {snapshot.source.place}
+                </p>
+                <h1 className="max-w-3xl text-5xl font-semibold tracking-[-0.05em] sm:text-6xl lg:text-7xl">
+                  鸟停在黎明边缘等待出发。
+                </h1>
+                <p className="max-w-2xl text-lg leading-8 text-white/72 sm:text-xl">
+                  这是一个真实的日出窗口，带有安静的回退路径，所以主页不会变成空白页。
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3 text-sm text-white/72">
+                <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2">
+                  {snapshot.source.localTime}
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2">
+                  {snapshot.source.attribution}
+                </div>
+              </div>
+            </div>
+
+            <aside className="rounded-[2rem] border border-white/10 bg-black/35 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/60">
+                <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-xs uppercase tracking-[0.24em] text-white/55">
+                  <span>{mediaLabel}</span>
+                  <span>{snapshot.currentCamera.freshnessLabel}</span>
+                </div>
+                <div className="relative aspect-[4/3] bg-[radial-gradient(circle_at_top,_rgba(255,180,80,0.32),_transparent_48%),linear-gradient(180deg,#2a2018_0%,#0b0b0b_100%)]">
+                  {playerUrl ? (
+                    <iframe
+                      className="h-full w-full object-cover"
+                      src={playerUrl}
+                      title={snapshot.currentCamera.title}
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : mediaUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      alt={snapshot.currentCamera.title}
+                      className="h-full w-full object-cover"
+                      src={mediaUrl}
+                      referrerPolicy="no-referrer"
+                      loading="eager"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center px-6 text-center text-sm leading-7 text-white/72">
+                      当前没有可直接显示的画面，正在使用文字快照。
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.02)_0%,rgba(0,0,0,0.12)_35%,rgba(0,0,0,0.68)_100%)]" />
+                  <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[0.7rem] uppercase tracking-[0.22em] text-white/85 backdrop-blur">
+                    {snapshot.currentCamera.sourceType}
+                  </div>
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <p className="text-sm uppercase tracking-[0.24em] text-white/70">
+                      {snapshot.currentCamera.location.country} · {snapshot.currentCamera.location.city}
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">
+                      {snapshot.currentCamera.title}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.28em] text-white/45">鸟的状态</p>
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_18px_rgba(255,180,70,0.8)]" />
+              </div>
+              <p className="mt-4 text-lg leading-8 text-white/82">{snapshot.birdStatus}</p>
+              {snapshot.currentCamera.player?.live ? (
+                <a
+                  className="mt-5 inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white/85"
+                  href={snapshot.currentCamera.player.live}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  打开直播页
+                </a>
+              ) : null}
+              <div className="mt-6 grid gap-3 text-sm text-white/68">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-white/45">来源标签</p>
+                  <p className="mt-2 font-medium text-white">{snapshot.currentCamera.previewLabel}</p>
+                  <p className="mt-1 text-white/55">{snapshot.currentCamera.freshnessLabel}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-white/45">下一步</p>
+                  <p className="mt-2 font-medium text-white">
+                    打开地球仪，或者写一封信。
+                  </p>
+                  <p className="mt-1 text-white/55">
+                    {snapshot.currentCamera.title} · {snapshot.currentCamera.location.city}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black" href="/globe">
+                  打开地球仪
+                </Link>
+                <Link
+                  className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white"
+                  href="/write"
+                >
+                  写一封信
+                </Link>
+              </div>
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/68">
+                <p className="text-xs uppercase tracking-[0.24em] text-white/45">当前相机</p>
+                <p className="mt-2 font-medium text-white">{snapshot.currentCamera.title}</p>
+                <p className="mt-1">
+                  分数 {snapshot.currentCamera.score} · 距日出 {snapshot.currentCamera.sunriseDeltaMinutes} 分钟
+                </p>
+              </div>
+            </aside>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/65 to-transparent" />
+      </section>
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-black/70 backdrop-blur-xl">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-4 gap-2 px-3 py-3 sm:px-6">
+          <Link className="rounded-full bg-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-black" href="/">
+            日出
+          </Link>
+          <Link
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-center text-xs font-medium uppercase tracking-[0.2em] text-white/80"
+            href="/globe"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            地球仪
+          </Link>
+          <Link
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-center text-xs font-medium uppercase tracking-[0.2em] text-white/80"
+            href="/write"
           >
-            Documentation
-          </a>
+            写信
+          </Link>
+          <Link
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-center text-xs font-medium uppercase tracking-[0.2em] text-white/80"
+            href="/inbox"
+          >
+            收件箱
+          </Link>
         </div>
-      </main>
-    </div>
+      </nav>
+    </main>
   );
 }
