@@ -127,4 +127,5 @@ Verified routes:
 - The first deployment checklist is now written in `docs/DEPLOYMENT.md`.
 - The next external step is to sign in to Vercel, import the repository, set production environment variables, and apply the Supabase migration SQL to the external project.
 - The Vercel import page is reachable, but it currently stops at the provider sign-in screen because the account is not connected in this browser session.
+- The homepage and globe now refresh the sunrise snapshot on a timer so the bird position and current source stay current over time.
 - The next presentation step is to keep new UI copy in Chinese unless a technical term must stay in English.

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { SunriseSnapshot } from "@/lib/camera-types";
 import { type DemoStore } from "./use-demo-store";
 
 type GlobePanelProps = {
   store: DemoStore;
-  initialSnapshot?: SunriseSnapshot | null;
+  snapshot?: SunriseSnapshot | null;
   hideVisual?: boolean;
 };
 
@@ -18,29 +18,7 @@ function project(latitude: number, longitude: number, width: number, height: num
   return { x, y };
 }
 
-export function GlobePanel({ store, initialSnapshot = null, hideVisual = false }: GlobePanelProps) {
-  const [snapshot, setSnapshot] = useState<SunriseSnapshot | null>(initialSnapshot);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/current-sunrise")
-      .then((response) => response.json())
-      .then((data: SunriseSnapshot) => {
-        if (active) {
-          setSnapshot(data);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setSnapshot(null);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
+export function GlobePanel({ store, snapshot = null, hideVisual = false }: GlobePanelProps) {
   const activeLetter = store.lettersWithStatus.find(({ status }) => status !== "read");
   const currentCamera = snapshot?.currentCamera ?? null;
   const markers = useMemo(() => {
