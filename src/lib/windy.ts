@@ -5,7 +5,7 @@ import { selectFeaturedCamera } from "./camera-selection";
 const WINDY_ENDPOINT = "https://api.windy.com/webcams/api/v3/webcams";
 const REQUEST_TIMEOUT_MS = 8000;
 const PAGE_LIMIT = 20;
-const PAGE_COUNT = 4;
+const PAGE_COUNT = 6;
 const CURATED_WINDY_WHITELIST = new Set<number>([1227972392]);
 
 type RawCamera = Record<string, unknown> & {
@@ -357,6 +357,7 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
   const rising = laterPosition.altitude > currentPosition.altitude;
   const terminatorLongitude = getEstimatedMorningLongitude(now);
   const zoneDistance = getLongitudeDistance(location.longitude, terminatorLongitude);
+  const altitude = currentPosition.altitude;
 
   const freshnessMinutes = getFreshnessMinutes(typeof raw.lastUpdatedOn === "string" ? raw.lastUpdatedOn : undefined);
   const withinSunriseWindow = sunriseDeltaMinutes >= -30 && sunriseDeltaMinutes <= 60;
@@ -365,6 +366,10 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
   }
 
   if (!rising) {
+    return null;
+  }
+
+  if (!CURATED_WINDY_WHITELIST.has(raw.webcamId ?? -1) && (altitude < -0.25 || altitude > 0.45)) {
     return null;
   }
 
@@ -386,6 +391,12 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
 
   if (withinSunriseWindow) {
     score += 40;
+  }
+
+  if (Math.abs(altitude) <= 0.1) {
+    score += 15;
+  } else if (Math.abs(altitude) <= 0.25) {
+    score += 8;
   }
 
   score += 20;

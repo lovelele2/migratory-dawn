@@ -34,7 +34,7 @@ function normalizeLongitude(longitude: number) {
 }
 
 function getZoneKey(camera: CameraCandidate) {
-  const bucketSize = 30;
+  const bucketSize = 15;
   return Math.floor((normalizeLongitude(camera.location.longitude) + 180) / bucketSize);
 }
 

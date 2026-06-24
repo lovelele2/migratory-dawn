@@ -134,4 +134,5 @@ Verified routes:
 - The login page now adds a resend cooldown after each OTP request, so repeated taps show an explicit countdown instead of feeling unresponsive.
 - The homepage media path now uses live-only playback and a local curated sunrise fallback video when no live source is available.
 - The homepage sunrise selector now uses a broader page-based pool, filters to live sunrise candidates, and rotates the featured camera across a longer shortlist instead of always showing the same source.
+- The live filter now rejects cameras outside the sunrise altitude window, so the homepage should not surface a live stream without sunrise.
 - The next presentation step is to keep new UI copy in Chinese unless a technical term must stay in English.

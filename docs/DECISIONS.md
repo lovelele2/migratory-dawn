@@ -139,3 +139,7 @@
 ## D-033 — Rotate featured sunrise cameras within the scored shortlist
 **Decision:** Score all eligible cameras first, then choose the featured camera from a diversified shortlist built from multiple candidate pages and rotate it over a longer time window instead of always taking the first-ranked item.  
 **Reason:** A fixed top-1 camera makes the sunrise look stuck in one place, while broader sampling and bounded rotation still respect the score gate and give the homepage movement over time.
+
+## D-034 — Reject non-sunrise live cameras
+**Decision:** Exclude live cameras whose solar altitude is outside the sunrise window even if they have a live player.  
+**Reason:** A live stream without sunrise is not truthful for this product, so it should fall back to the curated video instead of pretending the camera is valid.
