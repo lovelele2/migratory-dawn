@@ -7,7 +7,7 @@ const fallbackCandidates: CameraCandidate[] = [
     title: "奥克兰日出山脊",
     status: "active",
     lastUpdatedOn: "2026-06-23T09:58:00Z",
-    localTimeLabel: "06:13 当地时间",
+    localTimeLabel: "UTC 06:13",
     location: {
       city: "奥克兰",
       country: "新西兰",
@@ -15,7 +15,8 @@ const fallbackCandidates: CameraCandidate[] = [
       longitude: 174.7633,
     },
     sourceType: "精选真实日出",
-    previewLabel: "精选日出视频",
+    mediaMode: "fallback",
+    previewLabel: "演示日出影像",
     score: 96,
     sunriseDeltaMinutes: 8,
     freshnessLabel: "2 分钟前更新",
@@ -26,7 +27,7 @@ const fallbackCandidates: CameraCandidate[] = [
     title: "霍巴特港湾黎明",
     status: "active",
     lastUpdatedOn: "2026-06-23T09:55:00Z",
-    localTimeLabel: "07:55 当地时间",
+    localTimeLabel: "UTC 07:55",
     location: {
       city: "霍巴特",
       country: "澳大利亚",
@@ -34,10 +35,11 @@ const fallbackCandidates: CameraCandidate[] = [
       longitude: 147.3272,
     },
     sourceType: "今日延时",
-    previewLabel: "今日延时播放",
+    mediaMode: "day",
+    previewLabel: "今日延时影像",
     score: 84,
     sunriseDeltaMinutes: 14,
-    freshnessLabel: "5 分钟前更新",
+    freshnessLabel: "今日延时 5 分钟前刷新",
     attribution: "Windy 回退选片",
     player: {
       day: "https://example.invalid/hobart/day.mp4",
@@ -48,7 +50,7 @@ const fallbackCandidates: CameraCandidate[] = [
     title: "基督城码头图像",
     status: "active",
     lastUpdatedOn: "2026-06-23T09:52:00Z",
-    localTimeLabel: "08:52 当地时间",
+    localTimeLabel: "UTC 08:52",
     location: {
       city: "基督城",
       country: "新西兰",
@@ -56,10 +58,11 @@ const fallbackCandidates: CameraCandidate[] = [
       longitude: 172.6362,
     },
     sourceType: "实时相机图像",
-    previewLabel: "最新相机图像",
+    mediaMode: "image",
+    previewLabel: "最新图片",
     score: 72,
     sunriseDeltaMinutes: 21,
-    freshnessLabel: "8 分钟前更新",
+    freshnessLabel: "图片更新时间 8 分钟前",
     attribution: "Windy 回退选片",
     images: {
       current: {
@@ -88,15 +91,20 @@ export async function getCurrentSunriseSnapshot(): Promise<SunriseSnapshot> {
   const [currentCamera, ...queue] = fallbackCandidates;
 
   return {
+    mediaMode: currentCamera.mediaMode,
     source: {
       label: currentCamera.sourceType,
       place: formatPlace(currentCamera),
       localTime: currentCamera.localTimeLabel,
-      status: "在 Windy 数据接入前使用演示回退。",
+      status: currentCamera.mediaMode === "fallback" ? "本地精选日出影像已准备好。" : "在 Windy 数据接入前使用演示回退。",
       attribution: currentCamera.attribution,
     },
     birdStatus:
-      "鸟正在日出边缘盘旋，等待取件。",
+      currentCamera.mediaMode === "fallback"
+        ? "候鸟暂时带来了一段真实日出影像。"
+        : currentCamera.mediaMode === "live"
+          ? "候鸟抵达了正在升起的太阳。"
+          : "候鸟带来了这里最新的晨光。",
     currentCamera,
     queue,
     note:

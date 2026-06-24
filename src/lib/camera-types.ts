@@ -4,6 +4,8 @@ export type CameraSourceType =
   | "今日延时"
   | "精选真实日出";
 
+export type MediaMode = "live" | "day" | "image" | "fallback";
+
 export type CameraLocation = {
   city?: string;
   region?: string;
@@ -20,6 +22,7 @@ export type CameraCandidate = {
   localTimeLabel: string;
   location: CameraLocation;
   sourceType: CameraSourceType;
+  mediaMode: MediaMode;
   previewLabel: string;
   score: number;
   sunriseDeltaMinutes: number;
@@ -47,6 +50,7 @@ export type CameraCandidate = {
 };
 
 export type SunriseSnapshot = {
+  mediaMode: MediaMode;
   source: {
     label: CameraSourceType;
     place: string;

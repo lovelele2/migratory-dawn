@@ -1,5 +1,5 @@
 import * as SunCalc from "suncalc";
-import type { CameraCandidate, CameraLocation, CameraSourceType, SunriseSnapshot } from "./camera-types";
+import type { CameraCandidate, CameraLocation, CameraSourceType, MediaMode, SunriseSnapshot } from "./camera-types";
 
 const WINDY_ENDPOINT = "https://api.windy.com/webcams/api/v3/webcams";
 const REQUEST_TIMEOUT_MS = 8000;
@@ -213,6 +213,29 @@ function getSourceType(raw: RawCamera): CameraSourceType | null {
   return null;
 }
 
+function getMediaMode(raw: RawCamera): MediaMode | null {
+  const player = raw.player && typeof raw.player === "object" ? raw.player : null;
+  const images = raw.images && typeof raw.images === "object" ? raw.images : null;
+
+  if (player && typeof player.live === "string" && player.live.trim()) {
+    return "live";
+  }
+
+  if (player && typeof player.day === "string" && player.day.trim()) {
+    return "day";
+  }
+
+  const hasImage =
+    Boolean(images?.current && typeof images.current === "object") ||
+    Boolean(images?.daylight && typeof images.daylight === "object");
+
+  if (hasImage) {
+    return "image";
+  }
+
+  return null;
+}
+
 function isDirectionHint(title: string) {
   const lower = title.toLowerCase();
   return lower.includes("east") || lower.includes("southeast") || lower.includes("south east");
@@ -246,11 +269,60 @@ function getFreshnessMinutes(lastUpdatedOn: string | undefined) {
   return Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
 }
 
+function formatMediaFreshness(mediaMode: MediaMode, minutes: number) {
+  if (!Number.isFinite(minutes)) {
+    return "更新时间未知";
+  }
+
+  if (mediaMode === "live") {
+    if (minutes <= 0) {
+      return "直播源刚刷新";
+    }
+
+    return `直播源 ${minutes} 分钟前刷新`;
+  }
+
+  if (mediaMode === "day") {
+    if (minutes <= 0) {
+      return "今日延时刚刷新";
+    }
+
+    return `今日延时 ${minutes} 分钟前刷新`;
+  }
+
+  if (mediaMode === "image") {
+    if (minutes <= 0) {
+      return "图片刚更新";
+    }
+
+    return `图片更新时间 ${minutes} 分钟前`;
+  }
+
+  return "演示影像可用";
+}
+
+function getPreviewLabel(mediaMode: MediaMode) {
+  if (mediaMode === "live") {
+    return "LIVE";
+  }
+
+  if (mediaMode === "day") {
+    return "今日延时影像";
+  }
+
+  if (mediaMode === "image") {
+    return "最新图片";
+  }
+
+  return "演示日出影像";
+}
+
 function scoreCamera(raw: RawCamera, location: CameraLocation) {
   const now = new Date();
   const title = typeof raw.title === "string" ? raw.title : "";
   const sourceType = getSourceType(raw);
-  if (!sourceType) {
+  const mediaMode = getMediaMode(raw);
+  if (!sourceType || !mediaMode) {
     return null;
   }
 
@@ -268,6 +340,7 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
   const zoneDistance = getLongitudeDistance(location.longitude, terminatorLongitude);
 
   const freshnessMinutes = getFreshnessMinutes(typeof raw.lastUpdatedOn === "string" ? raw.lastUpdatedOn : undefined);
+  const withinSunriseWindow = sunriseDeltaMinutes >= -30 && sunriseDeltaMinutes <= 60;
   let score = 0;
 
   if (zoneDistance <= 30) {
@@ -292,11 +365,11 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
     score += 20;
   }
 
-  if (sourceType === "直播") {
+  if (mediaMode === "live") {
     score += 25;
-  } else if (sourceType === "今日延时") {
+  } else if (mediaMode === "day") {
     score += 10;
-  } else if (sourceType === "实时相机图像") {
+  } else if (mediaMode === "image") {
     score += 5;
   }
 
@@ -312,22 +385,12 @@ function scoreCamera(raw: RawCamera, location: CameraLocation) {
 
   return {
     sourceType,
+    mediaMode,
     sunriseDeltaMinutes,
     freshnessMinutes,
+    withinSunriseWindow,
     score,
   };
-}
-
-function formatFreshness(minutes: number) {
-  if (!Number.isFinite(minutes)) {
-    return "更新时间未知";
-  }
-
-  if (minutes <= 0) {
-    return "刚刚更新";
-  }
-
-  return `${minutes} 分钟前更新`;
 }
 
 function formatDisplayTime(lastUpdatedOn: string | undefined) {
@@ -368,18 +431,14 @@ function normalizeCamera(raw: RawCamera): CameraCandidate | null {
     title: raw.title,
     status: raw.status,
     lastUpdatedOn: raw.lastUpdatedOn,
-    localTimeLabel: `更新时间 ${formatDisplayTime(raw.lastUpdatedOn)}`,
+    localTimeLabel: `UTC ${formatDisplayTime(raw.lastUpdatedOn)}`,
     location,
     sourceType: scored.sourceType,
-    previewLabel:
-      scored.sourceType === "直播"
-        ? "直播画面"
-        : scored.sourceType === "今日延时"
-          ? "今日延时"
-          : "最新相机图像",
+    mediaMode: scored.mediaMode,
+    previewLabel: getPreviewLabel(scored.mediaMode),
     score: scored.score,
     sunriseDeltaMinutes: scored.sunriseDeltaMinutes,
-    freshnessLabel: formatFreshness(scored.freshnessMinutes),
+    freshnessLabel: formatMediaFreshness(scored.mediaMode, scored.freshnessMinutes),
     attribution: "Windy Webcams",
     player: raw.player as CameraCandidate["player"],
     images: raw.images as CameraCandidate["images"],
@@ -410,24 +469,52 @@ async function fetchWindyCandidates() {
     .sort((left, right) => right.score - left.score)
     .slice(0, MAX_RESULTS);
 
-  console.log("[windy] batches", batches.map((batch) => batch.length).join(","), "merged", merged.length, "normalized", normalized.length);
+  const sunriseWindowCandidates = normalized.filter((camera) => camera.sunriseDeltaMinutes >= -30 && camera.sunriseDeltaMinutes <= 60);
+  const finalCandidates = sunriseWindowCandidates.length > 0 ? sunriseWindowCandidates : normalized;
 
-  return normalized;
+  console.log(
+    "[windy] batches",
+    batches.map((batch) => batch.length).join(","),
+    "merged",
+    merged.length,
+    "normalized",
+    normalized.length,
+    "window",
+    sunriseWindowCandidates.length,
+  );
+
+  return finalCandidates;
 }
 
 function buildSnapshotFromCamera(camera: CameraCandidate, queue: CameraCandidate[]): SunriseSnapshot {
   const city = camera.location.city ?? "未知城市";
   const country = camera.location.country ?? "未知国家";
+  const sourceStatus =
+    camera.mediaMode === "live"
+      ? "Windy 直播已接入。"
+      : camera.mediaMode === "day"
+        ? "Windy 今日延时已接入。"
+        : camera.mediaMode === "image"
+          ? "Windy 最新图片已接入。"
+          : "本地精选日出影像已接入。";
+
+  const birdStatus =
+    camera.mediaMode === "live"
+      ? "候鸟抵达了正在升起的太阳。"
+      : camera.mediaMode === "fallback"
+        ? "候鸟暂时带来了一段真实日出影像。"
+        : "候鸟带来了这里最新的晨光。";
 
   return {
+    mediaMode: camera.mediaMode,
     source: {
       label: camera.sourceType,
       place: `${country} · ${city}`,
       localTime: camera.localTimeLabel,
-      status: "Windy 真实相机数据已接入。",
+      status: sourceStatus,
       attribution: camera.attribution,
     },
-    birdStatus: "鸟正在朝最接近日出的相机飞去。",
+    birdStatus,
     currentCamera: camera,
     queue,
     note: "该快照来自 Windy Webcams 的服务端请求。",

@@ -1,22 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SourceBadge } from "./source-badge";
 import type { SunriseSnapshot } from "@/lib/camera-types";
+import { getMediaFreshnessLabel, getMediaModeLabel, getMediaSources, getMediaStatus, getMediaTone, getSunriseDeltaLabel } from "@/lib/home-media";
 
 type HomePageClientProps = {
   initialSnapshot: SunriseSnapshot;
 };
-
-function getCameraMediaUrl(snapshot: SunriseSnapshot) {
-  return (
-    snapshot.currentCamera.images?.current?.preview ??
-    snapshot.currentCamera.images?.daylight?.preview ??
-    snapshot.currentCamera.player?.live ??
-    null
-  );
-}
 
 function getCameraPlayerUrl(snapshot: SunriseSnapshot) {
   return snapshot.currentCamera.player?.live ?? snapshot.currentCamera.player?.day ?? null;
@@ -24,6 +16,8 @@ function getCameraPlayerUrl(snapshot: SunriseSnapshot) {
 
 export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
+  const [activeSourceIndex, setActiveSourceIndex] = useState(0);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -54,14 +48,46 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
     };
   }, [initialSnapshot]);
 
-  const mediaUrl = getCameraMediaUrl(snapshot);
-  const playerUrl = getCameraPlayerUrl(snapshot);
-  const mediaLabel =
-    snapshot.currentCamera.sourceType === "直播"
-      ? "直播画面"
-      : snapshot.currentCamera.sourceType === "今日延时"
-        ? "今日延时画面"
-        : "相机当前画面";
+  const mediaSources = useMemo(() => getMediaSources(snapshot.currentCamera), [snapshot.currentCamera]);
+  const activeSource = mediaSources[Math.min(activeSourceIndex, mediaSources.length - 1)] ?? mediaSources[mediaSources.length - 1];
+  const activeSourceMode = activeSource?.mode ?? null;
+  const activeSourceUrl = activeSource?.url ?? "";
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setActiveSourceIndex(0);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [snapshot.currentCamera.webcamId, snapshot.currentCamera.mediaMode]);
+
+  useEffect(() => {
+    if (!activeSourceMode || !activeSourceUrl) {
+      return;
+    }
+
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+      setActiveSourceIndex((current) => Math.min(current + 1, mediaSources.length - 1));
+    }, 8000);
+
+    return () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [activeSourceMode, activeSourceUrl, mediaSources.length]);
+
+  const mediaLabel = activeSource ? getMediaModeLabel(activeSource.mode) : getMediaModeLabel(snapshot.currentCamera.mediaMode);
+  const mediaTone = activeSource ? getMediaTone(activeSource.mode) : getMediaTone(snapshot.currentCamera.mediaMode);
+  const mediaStatus = activeSource ? activeSource.status : getMediaStatus(snapshot.currentCamera.mediaMode);
+  const mediaFreshness = activeSource ? getMediaFreshnessLabel(activeSource.mode, snapshot.currentCamera.freshnessLabel) : snapshot.currentCamera.freshnessLabel;
+  const sunriseDeltaLabel = getSunriseDeltaLabel(snapshot.currentCamera.sunriseDeltaMinutes);
+  const windysideLink = activeSource?.secondaryUrl ?? getCameraPlayerUrl(snapshot);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,170,90,0.2),_transparent_25%),linear-gradient(180deg,_#131313_0%,_#060606_100%)] text-white">
@@ -76,14 +102,14 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
               <p>候鸟逐日 / Migratory Dawn</p>
               <p className="mt-1 text-[0.64rem] tracking-[0.2em] text-white/40">安静的地球日出窗口</p>
             </div>
-            <p className="text-right">正在使用演示回退</p>
+            <p className="text-right">{mediaStatus}</p>
           </header>
 
           <div className="mt-auto grid gap-8 pb-10 pt-24 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-3">
-                <SourceBadge label={snapshot.source.label} />
-                <span className="text-sm text-white/65">{snapshot.source.status}</span>
+                <SourceBadge label={mediaLabel} tone={mediaTone} />
+                <span className="text-sm text-white/65">{mediaStatus}</span>
               </div>
               <div className="space-y-4">
                 <p className="text-sm uppercase tracking-[0.28em] text-white/55">{snapshot.source.place}</p>
@@ -96,7 +122,7 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
               </div>
               <div className="flex flex-wrap gap-3 text-sm text-white/72">
                 <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2">{snapshot.source.localTime}</div>
-                <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2">{snapshot.source.attribution}</div>
+                <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2">{sunriseDeltaLabel}</div>
               </div>
             </div>
 
@@ -104,34 +130,51 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
               <div className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/60">
                 <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-xs uppercase tracking-[0.24em] text-white/55">
                   <span>{mediaLabel}</span>
-                  <span>{snapshot.currentCamera.freshnessLabel}</span>
+                  <span>{mediaFreshness}</span>
                 </div>
-                <div className="relative aspect-[4/3] bg-[radial-gradient(circle_at_top,_rgba(255,180,80,0.32),_transparent_48%),linear-gradient(180deg,#2a2018_0%,#0b0b0b_100%)]">
-                  {playerUrl ? (
+                <div className="relative min-h-[200px] aspect-video overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,180,80,0.32),_transparent_48%),linear-gradient(180deg,#2a2018_0%,#0b0b0b_100%)]">
+                  {activeSource?.kind === "iframe" ? (
                     <iframe
-                      className="h-full w-full object-cover"
-                      src={playerUrl}
-                      title={snapshot.currentCamera.title}
+                      key={activeSource.url}
+                      className="absolute inset-0 h-full w-full min-h-[200px] min-w-[110px] object-cover"
+                      src={activeSource.url}
+                      title={`${snapshot.currentCamera.title} · ${activeSource.label}`}
                       allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
                       referrerPolicy="no-referrer"
+                      onLoad={() => {
+                        if (timeoutRef.current) {
+                          window.clearTimeout(timeoutRef.current);
+                          timeoutRef.current = null;
+                        }
+                      }}
+                      onError={() => {
+                        setActiveSourceIndex((current) => Math.min(current + 1, mediaSources.length - 1));
+                      }}
                     />
-                  ) : mediaUrl ? (
+                  ) : activeSource ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      alt={snapshot.currentCamera.title}
-                      className="h-full w-full object-cover"
-                      src={mediaUrl}
+                      key={activeSource.url}
+                      alt={`${snapshot.currentCamera.title} · ${activeSource.label}`}
+                      className="absolute inset-0 h-full w-full min-h-[200px] min-w-[110px] object-cover"
+                      src={activeSource.url}
                       referrerPolicy="no-referrer"
                       loading="eager"
+                      onLoad={() => {
+                        if (timeoutRef.current) {
+                          window.clearTimeout(timeoutRef.current);
+                          timeoutRef.current = null;
+                        }
+                      }}
+                      onError={() => {
+                        setActiveSourceIndex((current) => Math.min(current + 1, mediaSources.length - 1));
+                      }}
                     />
-                  ) : (
-                    <div className="flex h-full items-center justify-center px-6 text-center text-sm leading-7 text-white/72">
-                      当前没有可直接显示的画面，正在使用文字快照。
-                    </div>
-                  )}
+                  ) : null}
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.02)_0%,rgba(0,0,0,0.12)_35%,rgba(0,0,0,0.68)_100%)]" />
                   <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[0.7rem] uppercase tracking-[0.22em] text-white/85 backdrop-blur">
-                    {snapshot.currentCamera.sourceType}
+                    {activeSource?.label ?? mediaLabel}
                   </div>
                   <div className="absolute bottom-4 left-4 right-4">
                     <p className="text-sm uppercase tracking-[0.24em] text-white/70">
@@ -146,21 +189,21 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_18px_rgba(255,180,70,0.8)]" />
               </div>
               <p className="mt-4 text-lg leading-8 text-white/82">{snapshot.birdStatus}</p>
-              {snapshot.currentCamera.player?.live ? (
+              {windysideLink ? (
                 <a
                   className="mt-5 inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white/85"
-                  href={snapshot.currentCamera.player.live}
+                  href={windysideLink}
                   rel="noreferrer"
                   target="_blank"
                 >
-                  打开直播页
+                  在 Windy 打开
                 </a>
               ) : null}
               <div className="mt-6 grid gap-3 text-sm text-white/68">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-[0.24em] text-white/45">来源标签</p>
                   <p className="mt-2 font-medium text-white">{snapshot.currentCamera.previewLabel}</p>
-                  <p className="mt-1 text-white/55">{snapshot.currentCamera.freshnessLabel}</p>
+                  <p className="mt-1 text-white/55">{mediaFreshness}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-[0.24em] text-white/45">下一步</p>
@@ -185,7 +228,7 @@ export function HomePageClient({ initialSnapshot }: HomePageClientProps) {
                 <p className="text-xs uppercase tracking-[0.24em] text-white/45">当前相机</p>
                 <p className="mt-2 font-medium text-white">{snapshot.currentCamera.title}</p>
                 <p className="mt-1">
-                  分数 {snapshot.currentCamera.score} · 距日出 {snapshot.currentCamera.sunriseDeltaMinutes} 分钟
+                  分数 {snapshot.currentCamera.score} · {sunriseDeltaLabel}
                 </p>
               </div>
             </aside>

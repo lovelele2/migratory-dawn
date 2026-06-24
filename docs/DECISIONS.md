@@ -131,3 +131,7 @@
 ## D-031 — Add a resend cooldown to the OTP form
 **Decision:** Disable the OTP send button for a short cooldown after each request and show a visible countdown in the button label.  
 **Reason:** The login flow feels broken when repeated clicks hit the same rate limit, so the countdown makes the backend delay obvious and prevents accidental spam.
+
+## D-032 — Normalize homepage media into one active mode
+**Decision:** Treat homepage media as a single active mode selected from live, day, image, or fallback, and auto-advance through the next source when the current one fails or times out.  
+**Reason:** The homepage must never show conflicting source labels at the same time, and the fallback path needs to remain truthful when Windy media is unavailable.
